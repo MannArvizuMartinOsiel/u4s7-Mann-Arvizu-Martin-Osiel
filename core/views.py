@@ -5,6 +5,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login, logout
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib import messages
+# Paginator: divide una lista larga de registros en páginas de tamaño fijo
+from django.core.paginator import Paginator
 
 from .models import Servicio
 from .forms import ServicioForm
@@ -21,18 +23,43 @@ def inicio(request):
     return render(request, 'core/inicio.html', contexto)
 
 
+# @login_required: si no hay sesión, manda a LOGIN_URL en lugar de ejecutar la vista
+# @login_required: si no hay sesión, manda a LOGIN_URL en lugar de ejecutar la vista
 @login_required
+# servicios: la vista del listado, ahora con búsqueda y paginación
 def servicios(request):
+    # Solo muestra los servicios del usuario actual
     lista_servicios = Servicio.objects.filter(
         propietario=request.user
-    )
+    ).order_by('-creado_en', '-id')
 
+    # Lee el texto que se escribió en el buscador
+    query = request.GET.get('q', '').strip()
+
+    # Busca por título si el usuario escribió algo
+    if query:
+        lista_servicios = lista_servicios.filter(
+            titulo__icontains=query
+        )
+
+    # Muestra 5 servicios por página
+    paginator = Paginator(lista_servicios, 5)
+
+    # Obtiene el número de página solicitado
+    numero_pagina = request.GET.get('page')
+
+    # Obtiene la página correspondiente
+    pagina = paginator.get_page(numero_pagina)
+
+    # Envía los resultados y la búsqueda a la plantilla
     return render(
         request,
         'core/servicios.html',
-        {'servicios': lista_servicios}
+        {
+            'servicios': pagina,
+            'query': query
+        }
     )
-
 
 @login_required
 def crear_servicio(request):
@@ -44,7 +71,10 @@ def crear_servicio(request):
             nuevo.propietario = request.user
             nuevo.save()
 
-            messages.success(request, 'Servicio creado correctamente.')
+            messages.success(
+                request,
+                'Servicio creado correctamente.'
+            )
             return redirect('servicios')
     else:
         form = ServicioForm()
@@ -52,7 +82,10 @@ def crear_servicio(request):
     return render(
         request,
         'core/servicio_form.html',
-        {'form': form, 'titulo_pagina': 'Nuevo servicio'}
+        {
+            'form': form,
+            'titulo_pagina': 'Nuevo servicio'
+        }
     )
 
 
@@ -65,11 +98,17 @@ def editar_servicio(request, pk):
     )
 
     if request.method == 'POST':
-        form = ServicioForm(request.POST, instance=servicio)
+        form = ServicioForm(
+            request.POST,
+            instance=servicio
+        )
 
         if form.is_valid():
             form.save()
-            messages.success(request, 'Servicio actualizado.')
+            messages.success(
+                request,
+                'Servicio actualizado.'
+            )
             return redirect('servicios')
     else:
         form = ServicioForm(instance=servicio)
@@ -77,7 +116,10 @@ def editar_servicio(request, pk):
     return render(
         request,
         'core/servicio_form.html',
-        {'form': form, 'titulo_pagina': 'Editar servicio'}
+        {
+            'form': form,
+            'titulo_pagina': 'Editar servicio'
+        }
     )
 
 
@@ -91,7 +133,10 @@ def eliminar_servicio(request, pk):
 
     if request.method == 'POST':
         servicio.delete()
-        messages.success(request, 'Servicio eliminado.')
+        messages.success(
+            request,
+            'Servicio eliminado.'
+        )
         return redirect('servicios')
 
     return render(
@@ -118,12 +163,19 @@ def registro(request):
     else:
         form = UserCreationForm()
 
-    return render(request, 'core/registro.html', {'form': form})
+    return render(
+        request,
+        'core/registro.html',
+        {'form': form}
+    )
 
 
 def iniciar_sesion(request):
     if request.method == 'POST':
-        form = AuthenticationForm(request, data=request.POST)
+        form = AuthenticationForm(
+            request,
+            data=request.POST
+        )
 
         if form.is_valid():
             login(request, form.get_user())
@@ -135,14 +187,21 @@ def iniciar_sesion(request):
 
             return redirect('servicios')
     else:
-        form = AuthenticationForm(request)
+        form = AuthenticationForm()
 
-    return render(request, 'core/login.html', {'form': form})
+    return render(
+        request,
+        'core/login.html',
+        {'form': form}
+    )
 
 
 def cerrar_sesion(request):
     if request.method == 'POST':
         logout(request)
-        messages.info(request, 'Sesión cerrada correctamente.')
+        messages.info(
+            request,
+            'Sesión cerrada correctamente.'
+        )
 
     return redirect('login')
