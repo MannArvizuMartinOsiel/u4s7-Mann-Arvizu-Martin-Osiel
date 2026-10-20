@@ -32,11 +32,31 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # se lee de .env (local) o del panel de Render (producción)
 SECRET_KEY = config('SECRET_KEY')
 
-# default=False: si falta la variable, queda apagado (lo seguro); cast=bool convierte "True"/"False" en booleano
-DEBUG = config('DEBUG', default=False, cast=bool)
+RENDER_HOSTNAME = config('RENDER_EXTERNAL_HOSTNAME', default='').strip()
 
-# dominios permitidos, separados por comas en la variable
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='', cast=Csv())
+DEBUG = config('DEBUG', default=False, cast=bool) and not bool(RENDER_HOSTNAME)
+
+ALLOWED_HOSTS = config(
+    'ALLOWED_HOSTS',
+    default='127.0.0.1,localhost',
+    cast=Csv(),
+)
+ALLOWED_HOSTS = list(dict.fromkeys([
+    *ALLOWED_HOSTS,
+    'u4s7-mann-arvizu-martin-osiel.onrender.com',
+    *([RENDER_HOSTNAME] if RENDER_HOSTNAME else []),
+]))
+
+CSRF_TRUSTED_ORIGINS = config(
+    'CSRF_TRUSTED_ORIGINS',
+    default='http://127.0.0.1:8000,http://localhost:8000',
+    cast=Csv(),
+)
+CSRF_TRUSTED_ORIGINS = list(dict.fromkeys([
+    *CSRF_TRUSTED_ORIGINS,
+    'https://u4s7-mann-arvizu-martin-osiel.onrender.com',
+    *([f'https://{RENDER_HOSTNAME}'] if RENDER_HOSTNAME else []),
+]))
 
 
 # Application definition
